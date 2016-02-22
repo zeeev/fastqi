@@ -1,0 +1,3 @@
+[submodule "bloom"]
+	path = bloom
+	url = https://github.com/zeeev/bloom.git
