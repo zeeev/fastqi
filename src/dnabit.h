@@ -62,6 +62,8 @@ extern "C" {
     if(base == T){
       return A;
     }
+    // not ideal
+    return 0;
   }
   void revcomp(uint64_t seq, uint64_t * revcomp){
     uint64_t mask = 3;
