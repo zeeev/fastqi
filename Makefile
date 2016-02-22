@@ -5,8 +5,12 @@
 
 CXX=g++
 
-fqi: bin
-	cd bin && $(CXX) -I ../src/ -lz ../src/main.cpp -o fqi
+fqi: bin libhts.a
+	cd bin && $(CXX) -L ../htslib -I ../htslib -I ../src/ -lz ../src/main.cpp ../htslib/libhts.a  -o fqi
 
 bin:
 	mkdir bin
+
+libhts.a:
+	cd htslib && make
+
