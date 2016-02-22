@@ -3,10 +3,10 @@
 #     zev.kronenberg@gmail.com       #
 ######################################
 
-CXX=g++
+CXX=c++ -lstdc++
 
 fqi: bin libhts.a
-	cd bin && $(CXX) -L ../htslib -I ../htslib -I ../src/ -lz ../src/main.cpp ../htslib/libhts.a  -o fqi
+	cd bin && $(CXX) -O3 -L ../htslib -I ../bloom -I ../htslib -I ../src/ -lz ../src/main.cpp ../htslib/libhts.a  -o fqi
 
 bin:
 	mkdir bin

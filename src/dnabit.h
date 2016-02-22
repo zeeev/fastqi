@@ -11,10 +11,10 @@ extern "C" {
 #include <inttypes.h>
 
   
-#define A 0
-#define T 1
-#define C 2
-#define G 3
+#define BA 0
+#define BT 1
+#define BC 2
+#define BG 3
 
   /* converts DNA to bits and packs it into a uint64 */
   
@@ -27,16 +27,16 @@ extern "C" {
       uint8_t baseNum = toupper(s[i]);
       
       if(baseNum == 65){
-	*results |= A;
+	*results |= BA;
       }
       else if(baseNum == 84){
-	*results |= T;
+	*results |= BT;
       }
       else if(baseNum == 71){
-	*results |= G;
+	*results |= BG;
       }
       else if(baseNum == 67){
-	*results |= C;
+	*results |= BC;
       }
       else{
 	return false;
@@ -50,17 +50,17 @@ extern "C" {
   }
 
   uint8_t flip(uint8_t base){
-    if(base == G){
-      return C;
+    if(base == BG){
+      return BC;
     }
-    if(base == C){
-      return G;
+    if(base == BC){
+      return BG;
     }
-    if(base == A){
-      return T;
+    if(base == BA){
+      return BT;
     }
-    if(base == T){
-      return A;
+    if(base == BT){
+      return BA;
     }
     // not ideal
     return 0;
@@ -82,13 +82,13 @@ extern "C" {
 
     for(int i = 62; i >= 0; i-=2){
 
-      if(((seq >> i) & mask) == T){
+      if(((seq >> i) & mask) == BT){
 	printf("T");	
       }
-      else if(((seq >> i) & mask) == A){
+      else if(((seq >> i) & mask) == BA){
 	printf("A");	
       }
-      else if(((seq >> i) & mask) == G){
+      else if(((seq >> i) & mask) == BG){
 	printf("G");	
       }
       else{

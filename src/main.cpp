@@ -54,7 +54,7 @@ extern "C"{
 #include "htslib/kseq.h"
 #include "htslib/bgzf.h"
 #include "htslib/kstring.h"
-
+#include "bloom_filter.hpp"
 
 
 // This should overwrite the stupid opaque pointer
@@ -102,7 +102,7 @@ int parseOpts(int argc, char** argv)
  Function returns: int ; > 0 good < 0 bad
 
 */
-int processChunk(uint64_t pos){
+int processChunk(uint64_t pos, bloom_filter * bf){
 
   BGZF * fp;
 
@@ -154,19 +154,20 @@ int processChunk(uint64_t pos){
     if(fqRecord == 1){
       nreads += 1;
 
-      std::cerr << fastq_line.s << std::endl;
-
-      
       for(uint32_t i = 0; i < fastq_line.l ; i++){
 	kmer = 0;
 	if(dnaTobit(fastq_line.s, i, &kmer)){
-	  kmers.push_back(kmer);
+	  kmers.push_back(kmer); 
 	}
       }
     }
   }
 
   std::cerr << "N kmers in bin: " << kmers.size() << std::endl;
+
+  for(int i = 0; i < kmers.size(); i++){
+    bf->insert(kmers[i]);
+  }
   
   bgzf_close(fp);
 
@@ -263,9 +264,21 @@ int main( int argc, char** argv)
     std::cerr << "FATAL: problem reading offsets" << std::endl;
     exit(1);
   }  
-  for(std::vector<uint64_t>::iterator it = offsets.begin();
-      it != offsets.end(); it++){
-    processChunk(*it);
+
+  bloom_parameters parameters;
+  parameters.projected_element_count = 1000;
+  parameters.false_positive_probability = 0.001; 
+
+  std::vector<bloom_filter *> bfs;
+
+  int i = 0;
+  for(i = 0; i < offsets.size(); i++){
+    bloom_filter * bf = new bloom_filter(parameters);
+    bfs.push_back(bf);
+  }
+  
+  for(i = 0; i < offsets.size(); i++){
+    processChunk(offsets[i], bfs[i]);
   }
   
   return 0;
