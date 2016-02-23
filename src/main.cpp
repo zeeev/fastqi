@@ -173,7 +173,76 @@ int processChunk(uint64_t pos, bloom_filter * bf){
 
   return 1;
 }
+
+bool checkblooms(char * s, std::vector<bloom_filter *> & bfs){
   
+  uint64_t kmer = 0;
+  
+  if(dnaTobit(s, 0, &kmer)){
+    
+    for(std::vector<bloom_filter *>::iterator it = bfs.begin();
+	it != bfs.end(); it++){
+      if((*it)->contains(kmer)){
+	return true;
+      } 
+    }
+  }
+  return false;
+}
+
+//------------------------------- SUBROUTINE --------------------------------
+/*
+ Function input  : a vector of bloom_filter pointers
+
+ Function does   : tests the functions
+                   
+ Function returns: int ; > 0 good < 0 bad
+
+*/
+
+int test(std::vector<bloom_filter*> & bfs)
+{
+
+  BGZF * fp;
+
+  fp = bgzf_open(globalOpts.file.c_str(), "r");
+
+  if(bgzf_index_load(fp, globalOpts.file.c_str(), ".gzi") <0){
+    std::cerr << "FATAL: Could not open index file.";
+    exit(1);
+  }
+
+  kstring_t fastq_line ;
+
+  fastq_line.m = 0;
+  fastq_line.l = 0;
+  fastq_line.s = 0;
+  
+  int nreads    = 0;
+  int fqRecord  = 0;
+  
+  while(bgzf_getline(fp, '\n', &fastq_line) > 0){
+    
+    fqRecord  +=1;
+    if(fqRecord > 4){
+      fqRecord = 1;
+    }
+    if(fqRecord == 2){
+      nreads += 1;
+      uint64_t kmer = 0;
+      std::cerr << fastq_line.s << std::endl;
+
+      if(dnaTobit(fastq_line.s, 1, &kmer)){
+
+	printKmer(kmer);
+      }
+    }
+  }
+
+  return 1;
+
+}
+
 //------------------------------- SUBROUTINE --------------------------------
 /*
  Function input  : a vector for compressed index positions (tell)
@@ -268,7 +337,8 @@ int main( int argc, char** argv)
   bloom_parameters parameters;
   parameters.projected_element_count = 1000;
   parameters.false_positive_probability = 0.001; 
-
+  parameters.compute_optimal_parameters();
+  
   std::vector<bloom_filter *> bfs;
 
   int i = 0;
@@ -279,6 +349,17 @@ int main( int argc, char** argv)
   
   for(i = 0; i < offsets.size(); i++){
     processChunk(offsets[i], bfs[i]);
+  }
+
+  char km1[] = "TATGTACGTAGTCTAGGCCATATGTGTTGGAG";
+  char km2[] = "TGAGGAGGAATCAGATGAAGTGGAGGATAACG";
+
+  if(checkblooms(km1, bfs)){
+    std::cerr << "KMER 1 found" << std::endl;
+  }
+  if(checkblooms(km2, bfs)){
+    std::cerr << "KMER 1 found" << std::endl;
+    std::cerr << "All is well" << std::endl;
   }
   
   return 0;
