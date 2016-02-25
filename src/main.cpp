@@ -335,15 +335,34 @@ int main( int argc, char** argv)
   parameters.random_seed                =     1;
   parameters.compute_optimal_parameters()      ;
 
-  bloomContainer blooms;
+  bloomContainer created_blooms;
 
   int i = 0;
   for(i = 0; i < offsets.size(); i++){
-    blooms.add(parameters, offsets[i]);
+    created_blooms.add(parameters, offsets[i]);
   }
   
   for(i = 0; i < offsets.size(); i++){
-    processChunk(offsets[i], blooms.data[i]);
+    processChunk(offsets[i], created_blooms.data[i]);
+  }
+
+  std::string test = "testi.bin";
+  {
+    bloomIO controller(test);
+    
+    controller.openForWrite();
+
+    controller.write(created_blooms);
+  }
+
+  bloomContainer loaded_blooms;
+  
+  {
+    bloomIO controller(test);
+    
+    controller.openForRead();
+    
+    controller.read(loaded_blooms);
   }
   
   return 0;
