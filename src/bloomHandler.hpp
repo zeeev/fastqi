@@ -22,6 +22,31 @@ public:
   {} 
 };
 
+
+class bloomContainer{
+public:
+  
+  friend class     bloom_filter ;
+  friend class bloom_parameters ;
+  friend class     bloomWrapper ;
+  
+  std::vector<bloomWrapper *> data;
+
+  ~bloomContainer()
+  {
+    for(std::vector<bloomWrapper *>::iterator it = data.begin();
+	it != data.end(); it++){
+      delete (*it);
+    }
+  }
+
+  inline void add(const bloom_parameters& p, uint64_t of){
+    bloomWrapper * bf = new bloomWrapper(p, of);
+    data.push_back(bf);
+  }
+  
+};
+
 class bloomIO{
   friend class     bloom_filter ;
   friend class bloom_parameters ;

@@ -334,29 +334,17 @@ int main( int argc, char** argv)
   parameters.false_positive_probability = 0.001; 
   parameters.random_seed                =     1;
   parameters.compute_optimal_parameters()      ;
-  
-  std::vector<bloomWrapper *> bfs;
+
+  bloomContainer blooms;
 
   int i = 0;
   for(i = 0; i < offsets.size(); i++){
-    bloomWrapper * bf = new bloomWrapper(parameters,
-					 offsets[i]);
-    bfs.push_back(bf);
+    blooms.add(parameters, offsets[i]);
   }
   
   for(i = 0; i < offsets.size(); i++){
-    processChunk(offsets[i], bfs[i]);
+    processChunk(offsets[i], blooms.data[i]);
   }
-
-  std::string bi = "testb.bin";
-  bloomIO bloomI(bi);
-
-  if(!bloomI.openForWrite()){
-    std::cerr << "FATAL: issues with bloom writing class" << std::endl;
-  }
-
-  bloomI.write(bfs);
-
   
   return 0;
 }
