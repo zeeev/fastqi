@@ -55,12 +55,11 @@ extern "C"{
 #include "htslib/bgzf.h"
 #include "htslib/kstring.h"
 #include "bloom_filter.hpp"
-
-
-// This should overwrite the stupid opaque pointer
+#include "bloomHandler.hpp"
 
 struct options{
-  std::string file;
+  std::string file ;
+  std::string bft  ;
   std::string index;
 }globalOpts;
 
@@ -80,6 +79,7 @@ int parseOpts(int argc, char** argv)
     case 'f':
       {
 	globalOpts.file  = optarg;
+	globalOpts.bft   = globalOpts.file + ".bft";
 	break;
       }
     case '?':
@@ -98,11 +98,10 @@ int parseOpts(int argc, char** argv)
 
  Function does   : processes a chunk
                    
-
  Function returns: int ; > 0 good < 0 bad
 
 */
-int processChunk(uint64_t pos, bloom_filter * bf){
+int processChunk(uint64_t pos, bloomWrapper * bfw){
 
   BGZF * fp;
 
@@ -166,7 +165,7 @@ int processChunk(uint64_t pos, bloom_filter * bf){
   std::cerr << "N kmers in bin: " << kmers.size() << std::endl;
 
   for(int i = 0; i < kmers.size(); i++){
-    bf->insert(kmers[i]);
+    bfw->bf.insert(kmers[i]);
   }
   
   bgzf_close(fp);
@@ -329,21 +328,19 @@ int main( int argc, char** argv)
     std::cerr << "FATAL: problem reading offsets" << std::endl;
     exit(1);
   }
-  if( getReadOffsets(offsets) < 0 ){
-    std::cerr << "FATAL: problem reading offsets" << std::endl;
-    exit(1);
-  }  
 
   bloom_parameters parameters;
-  parameters.projected_element_count = 1000;
+  parameters.projected_element_count    = 10000;
   parameters.false_positive_probability = 0.001; 
-  parameters.compute_optimal_parameters();
+  parameters.random_seed                =     1;
+  parameters.compute_optimal_parameters()      ;
   
-  std::vector<bloom_filter *> bfs;
+  std::vector<bloomWrapper *> bfs;
 
   int i = 0;
   for(i = 0; i < offsets.size(); i++){
-    bloom_filter * bf = new bloom_filter(parameters);
+    bloomWrapper * bf = new bloomWrapper(parameters,
+					 offsets[i]);
     bfs.push_back(bf);
   }
   
@@ -351,16 +348,15 @@ int main( int argc, char** argv)
     processChunk(offsets[i], bfs[i]);
   }
 
-  char km1[] = "TATGTACGTAGTCTAGGCCATATGTGTTGGAG";
-  char km2[] = "TGAGGAGGAATCAGATGAAGTGGAGGATAACG";
+  std::string bi = "testb.bin";
+  bloomIO bloomI(bi);
 
-  if(checkblooms(km1, bfs)){
-    std::cerr << "KMER 1 found" << std::endl;
+  if(!bloomI.openForWrite()){
+    std::cerr << "FATAL: issues with bloom writing class" << std::endl;
   }
-  if(checkblooms(km2, bfs)){
-    std::cerr << "KMER 1 found" << std::endl;
-    std::cerr << "All is well" << std::endl;
-  }
+
+  bloomI.write(bfs);
+
   
   return 0;
 }
