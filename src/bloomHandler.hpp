@@ -7,19 +7,66 @@
 
 class bloomWrapper{
   friend class bloom_filter     ;
-  friend class bloom_parameters ;
   
 public:
 
   bloom_filter                bf ;
   uint32_t                    id ;
-  uint32_t         parentPointer ;
+  uint32_t          parentArrayI ;
   uint64_t           fastqOffset ;
   std::vector<uint32_t> children ;
 
   bloomWrapper(const bloom_parameters& p, uint64_t of) :
-    bf(p), parentPointer(0), fastqOffset(of)
-  {} 
+    bf(p), parentArrayI(0), fastqOffset(of), id(0)
+  {}
+
+  inline bool write(std::fstream & fs){
+    if(!fs.is_open()) return false;
+
+    // writing number of salts
+    fs.write((char *) &bf.salt_count_, sizeof(unsigned int) );
+
+    // writing salt vector
+    for(unsigned int i = 0; i < bf.salt_count_ ; i++){
+      fs.write((char *) &bf.salt_[i], sizeof(bloom_type) );
+    }
+
+    // writing table size
+    fs.write((char *) &bf.table_size_,
+	     sizeof(unsigned long long int) );
+
+    // writing raw_table_size
+    fs.write((char *) &bf.raw_table_size_,
+	     sizeof(unsigned long long int) );
+    
+    // writing table
+    for(unsigned long long int i = 0;
+	i < bf.salt_count_ ; i++){
+      fs.write((char *) &bf.bit_table_[i],
+	       sizeof(unsigned char) );
+    }
+
+    // writing projected element count
+    fs.write((char *) &bf.projected_element_count_,
+	     sizeof(unsigned long long int) );
+
+    // writing inserted_element_count_
+    fs.write((char *) &bf.projected_element_count_,
+	     sizeof( unsigned int ) );
+
+    // writing random seed
+    fs.write((char *) &bf.random_seed_,
+	     sizeof( unsigned long long int ) );
+
+    // prob
+    // writing random seed
+    fs.write((char *) &bf.desired_false_positive_probability_,
+	     sizeof( double ) );
+
+    return true;
+  }
+
+  
 };
 
 
@@ -98,23 +145,6 @@ public:
       return false;
     }
   }
-
-  inline bool write(std::vector<bloomWrapper *> bws){
-
-    if(write_lock) return false;
-
-    if(!fs.is_open()){
-      openForWrite();
-    }
-
-    for(std::vector<bloomWrapper *>::iterator it = bws.begin();
-	it != bws.end(); it++){
-      fs.write((char *)(*it), sizeof(bloomWrapper));
-    }
-
-    write_lock = true;
-    return true;
-  }  
 };
 
 
