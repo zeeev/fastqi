@@ -50,8 +50,7 @@ public:
     fs.read((char *) &bf.desired_false_positive_probability_,
 	     sizeof(double) );
 
-    unsigned int v;
-    
+    unsigned int v;    
     for(unsigned int i = 0; i < bf.salt_count_ ; i++){
       fs.read((char *) &v, sizeof(unsigned int) );
       bf.salt_.push_back(v);
@@ -60,8 +59,7 @@ public:
     delete[] bf.bit_table_;
     bf.bit_table_ = new unsigned char[static_cast<std::size_t>(bf.raw_table_size_)];
     
-    for(unsigned long long int i = 0;
-	i < bf.table_size_ ; i++){
+    for(unsigned long long int i = 0; i < bf.table_size_ ; i++){
       fs.read((char *) &bf.bit_table_[i],
 	       sizeof(unsigned char) );
     }
@@ -94,7 +92,7 @@ public:
 
     fs.write((char *) &bf.desired_false_positive_probability_,
 	     sizeof(double) );
-    
+
     for(unsigned int i = 0; i < bf.salt_count_ ; i++){
       fs.write((char *) &bf.salt_[i], sizeof(unsigned int) );
     }
@@ -166,6 +164,13 @@ public:
     this->fs.read((char *) &nFrozenBlooms, sizeof(uint64_t));
 
     std::cerr << "Going to read: " << nFrozenBlooms << std::endl;
+
+    for(uint64_t i = 0; i < nFrozenBlooms; i++){
+      
+      blooms.add();
+      blooms.data[i]->read(fs);
+	
+    }
     
     return true;
   }
@@ -198,7 +203,10 @@ public:
 	this->fs.read((char*)&magic, sizeof(uint64_t));
 
 	if(magic == lucky){
-	  std::cerr << "INFO: good to read index" << std::endl;
+	  std::cerr << "INFO: index OK" << std::endl;
+	}
+	else{
+	  std::cerr << "FATAL: index not OK" << std::endl;
 	}
 	
 	return true;

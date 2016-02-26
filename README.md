@@ -1,0 +1,5 @@
+# FASTQI
+
+Testing fastq indexing.
+
+.
