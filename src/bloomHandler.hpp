@@ -26,99 +26,84 @@ public:
   inline bool read(std::fstream & fs){
     if(!fs.is_open()) return false;
 
-    // reading fastq offsets
-    fs.read((char *) &bf.salt_count_, sizeof(uint64_t) );
-    
-    // reading number of salts
-    fs.read((char *) &bf.salt_count_, sizeof(unsigned int) );
+    fs.read((char *) &fastqOffset,
+	     sizeof(uint64_t) );
 
-    // reading salt vector
-    for(unsigned int i = 0; i < bf.salt_count_ ; i++){
-      unsigned int s;  
-      fs.read((char *)&s, sizeof(unsigned int) );
-      bf.salt_.push_back(s);
-    }
-    // reading table size
+    fs.read((char *) &bf.salt_count_,
+	     sizeof(unsigned int) );
+
     fs.read((char *) &bf.table_size_,
 	     sizeof(unsigned long long int) );
 
-    // reading raw_table_size
     fs.read((char *) &bf.raw_table_size_,
 	     sizeof(unsigned long long int) );
 
-    // delete whatever the constructor built
-    delete[] bf.bit_table_;
-
-    // reallocate 
-    bf.bit_table_ = new unsigned char[static_cast<std::size_t>(bf.raw_table_size_)];
-
-    // reading table
-    for(unsigned long long int i = 0;
-	i < bf.salt_count_ ; i++){
-      fs.read((char *) &bf.bit_table_[i],
-	       sizeof(unsigned char) );
-    }
-
-    // reading projected element count
     fs.read((char *) &bf.projected_element_count_,
 	     sizeof(unsigned long long int) );
 
-    // reading inserted_element_count_
-    fs.read((char *) &bf.projected_element_count_,
-	     sizeof( unsigned int ) );
+    fs.read((char *) &bf.inserted_element_count_,
+	     sizeof(unsigned int) );
 
-    // reading random seed
     fs.read((char *) &bf.random_seed_,
-	     sizeof( unsigned long long int ) );
+	     sizeof(unsigned long long int) );
 
+    fs.read((char *) &bf.desired_false_positive_probability_,
+	     sizeof(double) );
+
+    unsigned int v;
+    
+    for(unsigned int i = 0; i < bf.salt_count_ ; i++){
+      fs.read((char *) &v, sizeof(unsigned int) );
+      bf.salt_.push_back(v);
+    }
+
+    delete[] bf.bit_table_;
+    bf.bit_table_ = new unsigned char[static_cast<std::size_t>(bf.raw_table_size_)];
+    
+    for(unsigned long long int i = 0;
+	i < bf.table_size_ ; i++){
+      fs.read((char *) &bf.bit_table_[i],
+	       sizeof(unsigned char) );
+    }
     return true;
   }
-  
+    
   inline bool write(std::fstream & fs){
     if(!fs.is_open()) return false;
 
-    // read fastq offsets
-    fs.write((char *) &bf.salt_count_, sizeof(uint64_t) );
+    fs.write((char *) &fastqOffset,
+	     sizeof(uint64_t) );
     
-    // writing number of salts
-    fs.write((char *) &bf.salt_count_, sizeof(unsigned int) );
+    fs.write((char *) &bf.salt_count_,
+	     sizeof(unsigned int) );
 
-    // writing salt vector
+    fs.write((char *) &bf.table_size_,
+	     sizeof(unsigned long long int) );
+
+    fs.write((char *) &bf.raw_table_size_,
+	     sizeof(unsigned long long int) );
+
+    fs.write((char *) &bf.projected_element_count_,
+	     sizeof(unsigned long long int) );
+
+    fs.write((char *) &bf.inserted_element_count_,
+	     sizeof(unsigned int) );
+
+    fs.write((char *) &bf.random_seed_,
+	     sizeof(unsigned long long int) );
+
+    fs.write((char *) &bf.desired_false_positive_probability_,
+	     sizeof(double) );
+    
     for(unsigned int i = 0; i < bf.salt_count_ ; i++){
       fs.write((char *) &bf.salt_[i], sizeof(unsigned int) );
     }
 
-    // writing table size
-    fs.write((char *) &bf.table_size_,
-	     sizeof(unsigned long long int) );
-
-    // writing raw_table_size
-    fs.write((char *) &bf.raw_table_size_,
-	     sizeof(unsigned long long int) );
-    
-    // writing table
     for(unsigned long long int i = 0;
-	i < bf.salt_count_ ; i++){
+	i < bf.table_size_ ; i++){
       fs.write((char *) &bf.bit_table_[i],
 	       sizeof(unsigned char) );
     }
-
-    // writing projected element count
-    fs.write((char *) &bf.projected_element_count_,
-	     sizeof(unsigned long long int) );
-
-    // writing inserted_element_count_
-    fs.write((char *) &bf.projected_element_count_,
-	     sizeof( unsigned int ) );
-
-    // writing random seed
-    fs.write((char *) &bf.random_seed_,
-	     sizeof( unsigned long long int ) );
-
-    // writing prob prob
-    fs.write((char *) &bf.desired_false_positive_probability_,
-	     sizeof( double ) );
-
     return true;
   }
 
