@@ -9,10 +9,10 @@ However, the google bloom filter wrapper is ready.
 
 ### bloomHandler.hpp
 
-    Contains classes to wrap googles bloom filter
+Contains classes to wrap googles bloom filter
 
-    - [X] Serialize vector of bloom_filters
-    - [ ] build bloom filter tree
+ - [X] Serialize vector of bloom_filters
+ - [ ] build bloom filter tree
 
 
 
