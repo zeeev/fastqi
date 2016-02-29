@@ -20,4 +20,4 @@ test/mainTest:
 gtest-1.7.0/build/libgtest.a:
 	cd gtest-1.7.0 && mkdir build && cd build && cmake .. && make
 clean:
-	rm test/mainTest && rm test-index.bin
+	rm *bin && rm test/mainTest && rm test-index.bin
