@@ -63,6 +63,14 @@ struct options{
   std::string index;
 }globalOpts;
 
+struct fastq_entry{
+  kstring_t seqid;
+  kstring_t seq  ;
+  kstring_t sep  ;
+  kstring_t qual ;
+};
+
+
 static const char *optString = "hf:";
 
 //-------------------------------   OPTIONS   --------------------------------
@@ -91,6 +99,126 @@ int parseOpts(int argc, char** argv)
   }
   return 1;
 }
+//------------------------------- SUBROUTINE --------------------------------
+/*
+ Function input  : a pointer to kstring_t
+
+ Function does   : init 0
+
+ Function returns: NA
+
+*/
+
+inline void initKstring(kstring_t * k){
+  k->m = 0;
+  k->l = 0;
+  k->s = 0;
+}
+
+//------------------------------- SUBROUTINE --------------------------------
+/*
+ Function input  : vector of kmers to search, vector of offsets,
+                   bloomContainer
+
+ Function does   : Goes through bloom container and finds offsets 
+                   that need to be searched.
+
+ Function returns: int ; > 0 good < 0 bad
+
+*/
+
+bool flatSearch(std::vector<uint64_t> & qKmers,
+		std::vector<uint64_t> & of    ,
+		bloomContainer & bc            ){
+
+
+  for(std::vector<std::uint64_t>::iterator it = qKmers.begin();
+	it != qKmers.end(); it++){
+
+    for(std::vector<bloomWrapper *>::iterator iz = bc.data.begin();
+	iz != bc.data.end(); iz++){
+
+      if((*iz)->bf.contains(*it)){
+	of.push_back((*iz)->fastqOffset);
+      }
+    }
+  }
+
+  return true;
+}
+
+//------------------------------- SUBROUTINE --------------------------------
+/*
+ Function input  : an offset position, vector<uint64_t> kmers to match, 
+                   a string stream to load matches into
+
+ Function does   : bool
+
+ Function returns: int ; > 0 good < 0 bad
+
+*/
+
+bool getRecords(uint64_t pos, std::vector<uint64_t> & qKmers,
+		std::stringstream & ss){
+  BGZF * fp;
+
+  fp = bgzf_open(globalOpts.file.c_str(), "r");
+
+  if(bgzf_seek(fp, pos, 0) < 0){
+    std::cerr << "FATAL: Could not seek within file." << std::endl;
+    exit(1);
+  }
+
+  fastq_entry fq;
+  initKstring(&fq.seqid);
+  initKstring(&fq.seq  );
+  initKstring(&fq.sep  );
+  initKstring(&fq.qual );
+
+  int nreads = 0;
+  int state  = 1;
+
+  uint64_t kmer = 0;
+  
+  while(state > 0 && nreads < 100){
+    state = bgzf_getline(fp, '\n', &fq.seqid);
+    state = bgzf_getline(fp, '\n', &fq.seq  );
+    state = bgzf_getline(fp, '\n', &fq.sep  );
+    state = bgzf_getline(fp, '\n', &fq.qual );    
+    
+    if(state < 0){
+      break;
+    }
+    nreads++;
+
+    std::map<uint64_t, bool> kmersInRead;
+    
+    for(uint32_t i = 0; i < fq.seq.l - 32 ; i++){
+      kmer = 0;
+      if(dnaTobit(fq.seq.s, i, &kmer)){
+	kmersInRead[kmer] = true;
+      }
+    }
+
+    bool hit = true;
+    
+    for(std::vector<uint64_t>::iterator iz = qKmers.begin();
+	iz != qKmers.end(); iz++){
+
+      if(kmersInRead.find(*iz) == kmersInRead.end()){
+	hit = false;
+      }
+    }
+    if(hit){
+//      ss << fq.seqid.s << "\n" << fq.seq.s
+//	 << "\n" << fq.seq.s << "\n" << fq.qual.s << "\n";
+    }
+  }
+
+  bgzf_close(fp);
+  return true;
+
+}
 
 //------------------------------- SUBROUTINE --------------------------------
 /*
@@ -111,11 +239,6 @@ int processChunk(uint64_t pos, bloomWrapper * bfw){
   
   fp = bgzf_open(globalOpts.file.c_str(), "r");
 
-  if(bgzf_index_load(fp, globalOpts.file.c_str(), ".gzi") <0){
-    std::cerr << "FATAL: Could not open index file.";
-    exit(1);
-  }
-
   if(bgzf_seek(fp, pos, 0) < 0){
     std::cerr << "FATAL: Could not seek within file." << std::endl;
     exit(1);
@@ -123,15 +246,12 @@ int processChunk(uint64_t pos, bloomWrapper * bfw){
 
   kstring_t fastq_line  ;  
 
-  fastq_line.m = 0;
-  fastq_line.l = 0;
-  fastq_line.s = 0;
+  initKstring(&fastq_line);
     
   uint8_t  fqRecord = 0;
   uint64_t nreads   = 0;
   uint64_t kmer     = 0;
 
- 
   int state = 1;
 
   while (state > 0){
@@ -153,7 +273,7 @@ int processChunk(uint64_t pos, bloomWrapper * bfw){
     if(fqRecord == 1){
       nreads += 1;
 
-      for(uint32_t i = 0; i < fastq_line.l ; i++){
+      for(uint32_t i = 0; i < fastq_line.l - 32 ; i++){
 	kmer = 0;
 	if(dnaTobit(fastq_line.s, i, &kmer)){
 	  kmers.push_back(kmer); 
@@ -189,58 +309,6 @@ bool checkblooms(char * s, std::vector<bloom_filter *> & bfs){
   return false;
 }
 
-//------------------------------- SUBROUTINE --------------------------------
-/*
- Function input  : a vector of bloom_filter pointers
-
- Function does   : tests the functions
-                   
- Function returns: int ; > 0 good < 0 bad
-
-*/
-
-int test(std::vector<bloom_filter*> & bfs)
-{
-
-  BGZF * fp;
-
-  fp = bgzf_open(globalOpts.file.c_str(), "r");
-
-  if(bgzf_index_load(fp, globalOpts.file.c_str(), ".gzi") <0){
-    std::cerr << "FATAL: Could not open index file.";
-    exit(1);
-  }
-
-  kstring_t fastq_line ;
-
-  fastq_line.m = 0;
-  fastq_line.l = 0;
-  fastq_line.s = 0;
-  
-  int nreads    = 0;
-  int fqRecord  = 0;
-  
-  while(bgzf_getline(fp, '\n', &fastq_line) > 0){
-    
-    fqRecord  +=1;
-    if(fqRecord > 4){
-      fqRecord = 1;
-    }
-    if(fqRecord == 2){
-      nreads += 1;
-      uint64_t kmer = 0;
-      std::cerr << fastq_line.s << std::endl;
-
-      if(dnaTobit(fastq_line.s, 1, &kmer)){
-
-	printKmer(kmer);
-      }
-    }
-  }
-
-  return 1;
-
-}
 
 //------------------------------- SUBROUTINE --------------------------------
 /*
@@ -259,10 +327,10 @@ int getReadOffsets(std::vector<uint64_t> & offsets)
     
   fp = bgzf_open(globalOpts.file.c_str(), "r");
   
-  if(bgzf_index_load(fp, globalOpts.file.c_str(), ".gzi") <0){
-    std::cerr << "FATAL: Could not open index file.";
-    exit(1);
-  }
+//  if(bgzf_index_load(fp, globalOpts.file.c_str(), ".gzi") <0){
+//    std::cerr << "FATAL: Could not open index file.";
+//    exit(1);
+//  }
   
   kstring_t fastq_line ;
 
@@ -364,6 +432,23 @@ int main( int argc, char** argv)
     
     controller.read(loaded_blooms);
   }
+
+  std::vector<uint64_t> toFind ;
+  std::vector<uint64_t> offsetsToRead;
   
+  uint64_t k1 = 0;
+  char testK1[] = "AGAACGAGCAGTTTGGAAGTTGCTACCAATTT";
+  dnaTobit(testK1, i, &k1);
+  
+  toFind.push_back(k1);
+
+  std::cerr << "HERE" << std::endl;
+  
+  flatSearch(toFind,offsetsToRead,created_blooms);
+
+  std::cerr << "There are " << offsetsToRead.size()
+	    << " file offsets that must be read" << std::endl;
+    
+    
   return 0;
 }
