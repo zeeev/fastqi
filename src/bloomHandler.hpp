@@ -1,3 +1,5 @@
+/* methods to wrap bloom */
+
 #ifndef BLOOMHANDLER_H
 #define BLOOMHANDLER_H
 
