@@ -132,7 +132,7 @@ bool flatSearch(std::vector<uint64_t> & qKmers,
 		bloomContainer & bc            ){
 
 
-  for(std::vector<std::uint64_t>::iterator it = qKmers.begin();
+  for(std::vector<uint64_t>::iterator it = qKmers.begin();
 	it != qKmers.end(); it++){
 
     for(std::vector<bloomWrapper *>::iterator iz = bc.data.begin();

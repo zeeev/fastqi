@@ -6,7 +6,7 @@
 CXX=c++ -lstdc++
 
 fqi: bin libhts.a runtest
-	cd bin && $(CXX) -O3 -L ../htslib -I ../bloom -I ../htslib -I ../src/ -lz ../src/main.cpp ../htslib/libhts.a  -o fqi
+	cd bin && $(CXX) -O3 -L ../htslib -I ../bloom -I ../htslib -I ../src/ -lz ../src/main.cpp ../htslib/libhts.a  -lpthread -o fqi
 
 bin:
 	mkdir bin
@@ -20,4 +20,4 @@ test/mainTest: gtest-1.7.0/build/libgtest.a
 gtest-1.7.0/build/libgtest.a:
 	cd gtest-1.7.0 && mkdir build && cd build && cmake .. && make
 clean:
-	rm *bin && rm test/mainTest && rm test-index.bin
+	rm test*bin && rm test/mainTest && rm test-index.bin

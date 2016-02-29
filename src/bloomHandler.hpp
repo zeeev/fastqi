@@ -60,11 +60,12 @@ public:
 
     delete[] bf.bit_table_;
     bf.bit_table_ = new unsigned char[static_cast<std::size_t>(bf.raw_table_size_)];
+
     
-    for(unsigned long long int i = 0; i < bf.table_size_ ; i++){
-      fs.read((char *) &bf.bit_table_[i],
+   for(unsigned long long int i = 0; i < bf.raw_table_size_ ; i++){
+     fs.read((char *) &bf.bit_table_[i],
 	       sizeof(unsigned char) );
-    }
+   }
     return true;
   }
     
@@ -100,7 +101,7 @@ public:
     }
 
     for(unsigned long long int i = 0;
-	i < bf.table_size_ ; i++){
+	i < bf.raw_table_size_ ; i++){
       fs.write((char *) &bf.bit_table_[i],
 	       sizeof(unsigned char) );
     }
