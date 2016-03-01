@@ -449,9 +449,9 @@ bool buildIndex(void){
   }
   
   bloom_parameters parameters;
-  parameters.projected_element_count    = 10000;
-  parameters.false_positive_probability = 0.001;
-  parameters.random_seed                =     1;
+  parameters.projected_element_count    = 1000 ;
+  parameters.false_positive_probability = 0.01 ;
+  parameters.random_seed                =rand();
   parameters.compute_optimal_parameters()      ;
   
   bloomContainer created_blooms;
