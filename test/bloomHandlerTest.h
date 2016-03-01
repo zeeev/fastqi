@@ -34,8 +34,7 @@ TEST(bloomIO, read_write){
     controller.read(loaded_blooms);
   }
 
-  std::cerr << "HERE" << std::endl;
-  
+   
   for(int i = 0; i < 10; i++){
     ASSERT_EQ(created_blooms.data[i]->bf,
 	      loaded_blooms.data[i]->bf);
@@ -81,7 +80,6 @@ TEST(bloomIO, findTPs){
     
     bool found = false ;
     bool answer = true;
-    
     
     for(std::vector<bloomWrapper *>::iterator iz
 	  = loaded_blooms.data.begin();

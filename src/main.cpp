@@ -127,10 +127,9 @@ inline void initKstring(kstring_t * k){
 
 */
 
-bool flatSearch(std::vector<uint64_t> & qKmers,
-		std::vector<uint64_t> & of    ,
+bool flatSearch(std::vector<uint64_t> & qKmers   ,
+		std::map<uint64_t, bool> & of ,
 		bloomContainer & bc            ){
-
 
   for(std::vector<uint64_t>::iterator it = qKmers.begin();
 	it != qKmers.end(); it++){
@@ -139,7 +138,7 @@ bool flatSearch(std::vector<uint64_t> & qKmers,
 	iz != bc.data.end(); iz++){
 
       if((*iz)->bf.contains(*it)){
-	of.push_back((*iz)->fastqOffset);
+	of[(*iz)->fastqOffset] = true ;
       }
     }
   }
@@ -158,8 +157,8 @@ bool flatSearch(std::vector<uint64_t> & qKmers,
 
 */
 
-bool getRecords(uint64_t pos, std::vector<uint64_t> & qKmers,
-		std::stringstream & ss){
+bool getRecords(uint64_t pos, std::vector<uint64_t> & qKmers){
+
   BGZF * fp;
 
   fp = bgzf_open(globalOpts.file.c_str(), "r");
@@ -181,6 +180,7 @@ bool getRecords(uint64_t pos, std::vector<uint64_t> & qKmers,
   uint64_t kmer = 0;
   
   while(state > 0 && nreads < 100){
+
     state = bgzf_getline(fp, '\n', &fq.seqid);
     state = bgzf_getline(fp, '\n', &fq.seq  );
     state = bgzf_getline(fp, '\n', &fq.sep  );
@@ -189,6 +189,7 @@ bool getRecords(uint64_t pos, std::vector<uint64_t> & qKmers,
     if(state < 0){
       break;
     }
+
     nreads++;
 
     std::map<uint64_t, bool> kmersInRead;
@@ -200,18 +201,19 @@ bool getRecords(uint64_t pos, std::vector<uint64_t> & qKmers,
       }
     }
 
-    bool hit = true;
+    bool hit = false;
     
     for(std::vector<uint64_t>::iterator iz = qKmers.begin();
 	iz != qKmers.end(); iz++){
 
-      if(kmersInRead.find(*iz) == kmersInRead.end()){
-	hit = false;
+      if(kmersInRead.find(*iz) != kmersInRead.end()){
+	hit = true;
       }
     }
+
     if(hit){
-//      ss << fq.seqid.s << "\n" << fq.seq.s
-//	 << "\n" << fq.seq.s << "\n" << fq.qual.s << "\n";
+      std::cout << fq.seqid.s << "\n" << fq.seq.s
+	 << "\n" << fq.sep.s << "\n" << fq.qual.s << "\n";
     }
   }
 
@@ -244,42 +246,36 @@ int processChunk(uint64_t pos, bloomWrapper * bfw){
     exit(1);
   }
 
-  kstring_t fastq_line  ;  
+  int nreads = 0;
+  int state  = 1;
 
-  initKstring(&fastq_line);
-    
-  uint8_t  fqRecord = 0;
-  uint64_t nreads   = 0;
-  uint64_t kmer     = 0;
+  uint64_t kmer = 0;
+  fastq_entry fq;
 
-  int state = 1;
+  initKstring(&fq.seqid);
+  initKstring(&fq.seq  );
+  initKstring(&fq.sep  );
+  initKstring(&fq.qual );
 
-  while (state > 0){
+  while(state > 0 && nreads < 100){
 
-    if(nreads > 99){
-      break;
-    }
-    
-    state = bgzf_getline(fp, '\n', &fastq_line);
+    state = bgzf_getline(fp, '\n', &fq.seqid);
+    state = bgzf_getline(fp, '\n', &fq.seq  );
+    state = bgzf_getline(fp, '\n', &fq.sep  );
+    state = bgzf_getline(fp, '\n', &fq.qual );
 
     if(state < 0){
       break;
     }
-    fqRecord  +=1;
-    if(fqRecord > 4){
-      fqRecord = 1;
-    }
 
-    if(fqRecord == 1){
-      nreads += 1;
-
-      for(uint32_t i = 0; i < fastq_line.l - 32 ; i++){
-	kmer = 0;
-	if(dnaTobit(fastq_line.s, i, &kmer)){
-	  kmers.push_back(kmer); 
-	}
+    for(uint32_t i = 0; i < fq.seq.l - 32 ; i++){
+      kmer = 0;
+      if(dnaTobit(fq.seq.s, i, &kmer)){
+	kmers.push_back(kmer); 
+	
       }
     }
+    nreads += 1;
   }
 
   std::cerr << "N kmers in bin: " << kmers.size() << std::endl;
@@ -292,23 +288,6 @@ int processChunk(uint64_t pos, bloomWrapper * bfw){
 
   return 1;
 }
-
-bool checkblooms(char * s, std::vector<bloom_filter *> & bfs){
-  
-  uint64_t kmer = 0;
-  
-  if(dnaTobit(s, 0, &kmer)){
-    
-    for(std::vector<bloom_filter *>::iterator it = bfs.begin();
-	it != bfs.end(); it++){
-      if((*it)->contains(kmer)){
-	return true;
-      } 
-    }
-  }
-  return false;
-}
-
 
 //------------------------------- SUBROUTINE --------------------------------
 /*
@@ -332,35 +311,28 @@ int getReadOffsets(std::vector<uint64_t> & offsets)
 //    exit(1);
 //  }
   
-  kstring_t fastq_line ;
+  uint64_t nreads = 0;
+  fastq_entry fq;
 
-  fastq_line.m = 0;
-  fastq_line.l = 0;
-  fastq_line.s = 0;
+  initKstring(&fq.seqid);
+  initKstring(&fq.seq  );
+  initKstring(&fq.sep  );
+  initKstring(&fq.qual );
   
-  uint8_t   fqRecord = 0;
-  uint64_t  nreads   = 0;
-
   int state = 1;
   
-  while (state > 0){
+  while (state > 0 ){
+    uint64_t tellp = bgzf_tell(fp)           ;
 
-    uint64_t tellp = bgzf_tell(fp)             ;
-    state = bgzf_getline(fp, '\n', &fastq_line) ;
+    state = bgzf_getline(fp, '\n', &fq.seqid);
+    state = bgzf_getline(fp, '\n', &fq.seq  );
+    state = bgzf_getline(fp, '\n', &fq.sep  );
+    state = bgzf_getline(fp, '\n', &fq.qual );
 
-    if(state < 0){
-      break;
+    if( (nreads % 100) == 0 || nreads == 0){
+      offsets.push_back(tellp);
     }
-    fqRecord  +=1;
-    if(fqRecord > 4){
-      fqRecord = 1;
-    }
-    if(fqRecord == 2){
-      nreads += 1;    
-      if((nreads % 100) == 0 || nreads == 1){
-	offsets.push_back(tellp);
-      }
-    }
+    nreads+= 1;
   }
   
   if(bgzf_close(fp) < 0){
@@ -434,21 +406,29 @@ int main( int argc, char** argv)
   }
 
   std::vector<uint64_t> toFind ;
-  std::vector<uint64_t> offsetsToRead;
+  std::map<uint64_t, bool> offsetsToRead;
   
   uint64_t k1 = 0;
-  char testK1[] = "AGAACGAGCAGTTTGGAAGTTGCTACCAATTT";
-  dnaTobit(testK1, i, &k1);
+  uint64_t k2 = 14077770871635063417;
+  uint64_t k3 = 14077770871635063417;
+  uint64_t k4 = 14077770871635063417;
   
   toFind.push_back(k1);
-
-  std::cerr << "HERE" << std::endl;
+  toFind.push_back(k2);
+  toFind.push_back(k3);
+  toFind.push_back(k4);
   
-  flatSearch(toFind,offsetsToRead,created_blooms);
+  flatSearch(toFind,offsetsToRead,loaded_blooms);
 
   std::cerr << "There are " << offsetsToRead.size()
-	    << " file offsets that must be read" << std::endl;
+	    << " file offsets that must be read out of " 
+	    << loaded_blooms.data.size() << std::endl;
     
+  
+  for(std::map<uint64_t, bool>::iterator it = offsetsToRead.begin();
+      it != offsetsToRead.end(); it++){
+    getRecords(it->first, toFind);
+  }
     
   return 0;
 }
