@@ -1,5 +1,4 @@
-# FASTQI [![Build Status](https://travis-ci.org/zeeev/wham.svg?branch=master)](https://travis-ci.org/zeeev/fastqi)
-
+# FASTQI 
 ### The fastqi repo
 
 The repo will contain tools for indexing fastq files by kmer.
