@@ -6,7 +6,7 @@
 CXX=c++ -lstdc++
 
 fqi: bin libhts.a runtest
-	cd bin && $(CXX) -g -O0 -L ../htslib -I ../bloom -I ../htslib -I ../src/ -lz ../src/main.cpp ../htslib/libhts.a  -lpthread -o fqi
+	cd bin && $(CXX) -g -O0 -L ../htslib -I ../bloom -I ../htslib -I ../src/ -lz ../src/main.cpp ../src/split.cpp ../htslib/libhts.a  -lpthread -o fqi
 
 bin:
 	mkdir bin

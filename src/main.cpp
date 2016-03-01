@@ -56,11 +56,14 @@ extern "C"{
 #include "htslib/kstring.h"
 #include "bloom_filter.hpp"
 #include "bloomHandler.hpp"
+#include "split.h"
+
+#define BLOCK_SIZE 500
 
 struct options{
   std::string file ;
-  std::string bft  ;
   std::string index;
+  std::string seqs ;
 }globalOpts;
 
 struct fastq_entry{
@@ -71,8 +74,25 @@ struct fastq_entry{
 };
 
 
-static const char *optString = "hf:";
+static const char *optString = "vhf:s:";
 
+
+void printHelp(void){
+  std::cerr << std::endl;
+  std::cerr << "Synopsis:                                          "<< std::endl;
+  std::cerr << " Retrieve reads from fastq by kmer match (32-mer). "<< std::endl;
+  std::cerr << std::endl;
+  std::cerr << "Usage:                                             "<< std::endl;
+  std::cerr << "        bgzip test.fq                              "<< std::endl;
+  std::cerr << "        fqi -f test.fq.gz -s A,B,C,D > hits.fq     "<< std::endl;
+  std::cerr << std::endl;
+  std::cerr << "Required:  " << std::endl;
+  std::cerr << " -f, <STRING> - A bgzipped fastq file              "<< std::endl;
+  std::cerr << " -s, <STRING> - A comma separated list of kmers    "<< std::endl;
+  std::cerr << "                The kmers must be 32 characters    "<< std::endl;
+  std::cerr << "Output:  " << std::endl;
+  std::cerr << " Fastq entries are printed to STDOUT               "<< std::endl;
+}
 //-------------------------------   OPTIONS   --------------------------------
 int parseOpts(int argc, char** argv)
 {
@@ -82,14 +102,21 @@ int parseOpts(int argc, char** argv)
     switch(opt){
     case 'h':
       {
+	printHelp();
 	break;
       }
     case 'f':
       {
 	globalOpts.file  = optarg;
-	globalOpts.bft   = globalOpts.file + ".bft";
+	globalOpts.index = globalOpts.file + ".fqi";
 	break;
       }
+    case 's': 
+      {
+        globalOpts.index = optarg;
+        break;
+      }
+
     case '?':
       {
 	break;
@@ -179,7 +206,7 @@ bool getRecords(uint64_t pos, std::vector<uint64_t> & qKmers){
 
   uint64_t kmer = 0;
   
-  while(state > 0 && nreads < 100){
+  while(state > 0 && nreads < BLOCK_SIZE){
 
     state = bgzf_getline(fp, '\n', &fq.seqid);
     state = bgzf_getline(fp, '\n', &fq.seq  );
@@ -236,8 +263,6 @@ int processChunk(uint64_t pos, bloomWrapper * bfw){
   BGZF * fp;
 
   std::vector<uint64_t> kmers;
-
-  std::cerr << "bin offset: " << pos << std::endl;
   
   fp = bgzf_open(globalOpts.file.c_str(), "r");
 
@@ -257,7 +282,7 @@ int processChunk(uint64_t pos, bloomWrapper * bfw){
   initKstring(&fq.sep  );
   initKstring(&fq.qual );
 
-  while(state > 0 && nreads < 100){
+  while(state > 0 && nreads < BLOCK_SIZE){
 
     state = bgzf_getline(fp, '\n', &fq.seqid);
     state = bgzf_getline(fp, '\n', &fq.seq  );
@@ -277,8 +302,6 @@ int processChunk(uint64_t pos, bloomWrapper * bfw){
     }
     nreads += 1;
   }
-
-  std::cerr << "N kmers in bin: " << kmers.size() << std::endl;
 
   for(int i = 0; i < kmers.size(); i++){
     bfw->bf.insert(kmers[i]);
@@ -329,7 +352,7 @@ int getReadOffsets(std::vector<uint64_t> & offsets)
     state = bgzf_getline(fp, '\n', &fq.sep  );
     state = bgzf_getline(fp, '\n', &fq.qual );
 
-    if( (nreads % 100) == 0 || nreads == 0){
+    if( (nreads % BLOCK_SIZE) == 0 || nreads == 0){
       offsets.push_back(tellp);
     }
     nreads+= 1;
@@ -349,6 +372,99 @@ int getReadOffsets(std::vector<uint64_t> & offsets)
   }  
 }
 
+//------------------------------- SUBROUTINE --------------------------------
+/*
+ Function input  : vector to load
+
+ Function does   : turns a string into a uint64_t;
+
+ Function returns: bool
+
+*/
+
+
+bool parseSeqs(std::vector<uint64_t> & toLoad){
+  
+
+  std::vector<std::string> seqs = split(globalOpts.seqs, ",");
+  
+  for(std::vector<std::string>::iterator it = seqs.begin();
+      it != seqs.end(); it++){
+   
+    if((*it).size() != 32){
+      std::cerr << "WARNING: skipping kmer that is not 32 bases." << std::endl;
+      continue;
+    }
+ 
+    uint64_t kmer = 0;
+    
+    char * chr = strdup((*it).c_str());
+
+    if(dnaTobit(chr, 0, &kmer)){
+      toLoad.push_back(kmer);
+    }
+
+  }
+
+
+  return true;
+
+}
+
+
+//------------------------------- SUBROUTINE --------------------------------
+/*
+ Function input  : nothing
+
+ Function does   : the ugly parts of building the index
+
+ Function returns: bool
+
+*/
+
+bool buildIndex(void){
+
+  bloomIO controller(globalOpts.index);
+  if(controller.openForRead()){
+    return true;
+  }
+
+  std::vector<uint64_t> offsets;
+  if( getReadOffsets(offsets) < 0 ){
+    std::cerr << "FATAL: problem reading offsets" << std::endl;
+    exit(1);
+  }
+  
+  bloom_parameters parameters;
+  parameters.projected_element_count    = 10000;
+  parameters.false_positive_probability = 0.001;
+  parameters.random_seed                =     1;
+  parameters.compute_optimal_parameters()      ;
+  
+  bloomContainer created_blooms;
+  
+  int i = 0;
+  for(i = 0; i < offsets.size(); i++){
+    created_blooms.add(parameters, offsets[i]);
+  }
+  
+  for(i = 0; i < offsets.size(); i++){
+    processChunk(offsets[i], created_blooms.data[i]);
+
+    if((i % 1000) == 0){
+      std::cerr << "INFO: processed " << i
+		<< " chunks of " << offsets.size() << std::endl;
+    }  
+  }
+
+  bloomIO controller2(globalOpts.index);
+  
+  controller.openForWrite();
+    
+  controller.write(created_blooms);
+ 
+  return true;
+}
 //-------------------------------    MAIN     --------------------------------
 /*
  Comments:
@@ -360,71 +476,40 @@ int main( int argc, char** argv)
   
   if(globalOpts.file.empty()){
     std::cerr << "FATAL: no file (-f) " << std::endl;
+    printHelp();
     exit(1);
   }
 
-  std::vector<uint64_t> offsets;
-  if( getReadOffsets(offsets) < 0 ){
-    std::cerr << "FATAL: problem reading offsets" << std::endl;
+  if(globalOpts.seqs.empty()){
+    std::cerr << "FATAL: no seqs (-s) " << std::endl;
+    printHelp();
     exit(1);
   }
 
-  bloom_parameters parameters;
-  parameters.projected_element_count    = 10000;
-  parameters.false_positive_probability = 0.001; 
-  parameters.random_seed                =     1;
-  parameters.compute_optimal_parameters()      ;
+  std::vector<uint64_t> toFind ;
 
-  bloomContainer created_blooms;
-
-  int i = 0;
-  for(i = 0; i < offsets.size(); i++){
-    created_blooms.add(parameters, offsets[i]);
-  }
-  
-  for(i = 0; i < offsets.size(); i++){
-    processChunk(offsets[i], created_blooms.data[i]);
+  if(!parseSeqs(toFind)){
+    std::cerr << "FATAL: problem loading query sequences." << std::endl;
   }
 
-  std::string test = "testi.bin";
-  {
-    bloomIO controller(test);
-    
-    controller.openForWrite();
-
-    controller.write(created_blooms);
-  }
+  buildIndex();
 
   bloomContainer loaded_blooms;
   
   {
-    bloomIO controller(test);
-    
-    controller.openForRead();
-    
+    bloomIO controller(globalOpts.index);
+    controller.openForRead();    
     controller.read(loaded_blooms);
   }
 
-  std::vector<uint64_t> toFind ;
   std::map<uint64_t, bool> offsetsToRead;
-  
-  uint64_t k1 = 0;
-  uint64_t k2 = 14077770871635063417;
-  uint64_t k3 = 14077770871635063417;
-  uint64_t k4 = 14077770871635063417;
-  
-  toFind.push_back(k1);
-  toFind.push_back(k2);
-  toFind.push_back(k3);
-  toFind.push_back(k4);
-  
+    
   flatSearch(toFind,offsetsToRead,loaded_blooms);
 
   std::cerr << "There are " << offsetsToRead.size()
-	    << " file offsets that must be read out of " 
+	    << " file blocks that must be read out of " 
 	    << loaded_blooms.data.size() << std::endl;
     
-  
   for(std::map<uint64_t, bool>::iterator it = offsetsToRead.begin();
       it != offsetsToRead.end(); it++){
     getRecords(it->first, toFind);

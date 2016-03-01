@@ -166,7 +166,8 @@ public:
     
     this->fs.read((char *) &nFrozenBlooms, sizeof(uint64_t));
 
-    std::cerr << "Going to read: " << nFrozenBlooms << std::endl;
+    std::cerr << "INFO: loading " << nFrozenBlooms 
+	      << " bloom filters from index." << std::endl;
 
     for(uint64_t i = 0; i < nFrozenBlooms; i++){
       
@@ -207,12 +208,10 @@ public:
 
 	if(magic == lucky){
 	  std::cerr << "INFO: index OK" << std::endl;
-	}
-	else{
-	  std::cerr << "FATAL: index not OK" << std::endl;
+	  return true;
 	}
 	
-	return true;
+	return false;
   }
 
   inline bool openForWrite(void){
