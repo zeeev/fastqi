@@ -20,6 +20,15 @@ Fqi builds a fastq.gz index based on bloom filters.
 Currently it is a flat index divided by file chunk.
 Soon fqi will have a bloom tree for faster retrieval.
 
+#### Building fqi
+```
+git clone --recursive https://github.com/zeeev/fastqi.git
+cd fastqi
+make
+```
+
+#### Running fqi
+
 ```
 Synopsis:
  Retrieve reads from fastq by kmer match (32-mer).
