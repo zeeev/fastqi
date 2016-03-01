@@ -248,8 +248,12 @@ bool getRecords(uint64_t pos, std::vector<uint64_t> & qKmers){
     }
 
     if(hit){
+      omp_set_lock(&lock);
+
       std::cout << fq.seqid.s << "\n" << fq.seq.s
 	 << "\n" << fq.sep.s << "\n" << fq.qual.s << "\n";
+      
+      omp_unset_lock(&lock);
     }
   }
 
@@ -524,10 +528,13 @@ int main( int argc, char** argv)
   std::cerr << "There are " << offsetsToRead.size()
 	    << " file blocks that must be read out of " 
 	    << loaded_blooms.data.size() << std::endl;
-    
-  for(std::map<uint64_t, bool>::iterator it = offsetsToRead.begin();
-      it != offsetsToRead.end(); it++){
+
+  std::map<uint64_t, bool>::iterator it = offsetsToRead.begin();
+  
+#pragma omp parallel for schedule(dynamic, 3)    
+  for(uint32_t i = 0; i < offsetsToRead.size(); i++){
     getRecords(it->first, toFind);
+    it++;
   }
     
   return 0;
