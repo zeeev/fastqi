@@ -29,9 +29,9 @@ Usage:
         fqi -f test.fq.gz -s A,B,C,D > hits.fq
 
 Required:
- -f, <STRING> - A bgzipped fastq file
- -s, <STRING> - A comma separated list of kmers
-                The kmers must be 32 characters
+ -f, <STRING> - A bgzipped fastq file.
+ -s, <STRING> - A comma separated list of kmers.
+                The kmers must be 32 characters.
 Output:
  Fastq entries are printed to STDOUT
 ```

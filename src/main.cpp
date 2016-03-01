@@ -87,9 +87,9 @@ void printHelp(void){
   std::cerr << "        fqi -f test.fq.gz -s A,B,C,D > hits.fq     "<< std::endl;
   std::cerr << std::endl;
   std::cerr << "Required:  " << std::endl;
-  std::cerr << " -f, <STRING> - A bgzipped fastq file              "<< std::endl;
-  std::cerr << " -s, <STRING> - A comma separated list of kmers    "<< std::endl;
-  std::cerr << "                The kmers must be 32 characters    "<< std::endl;
+  std::cerr << " -f, <STRING> - A bgzipped fastq file.             "<< std::endl;
+  std::cerr << " -s, <STRING> - A comma separated list of kmers.   "<< std::endl;
+  std::cerr << "                The kmers must be 32 characters.   "<< std::endl;
   std::cerr << "Output:  " << std::endl;
   std::cerr << " Fastq entries are printed to STDOUT               "<< std::endl;
 }
