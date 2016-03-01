@@ -93,6 +93,7 @@ void printHelp(void){
   std::cerr << " -f, <STRING> - A bgzipped fastq file.             "<< std::endl;
   std::cerr << " -s, <STRING> - A comma separated list of kmers.   "<< std::endl;
   std::cerr << "                The kmers must be 32 characters.   "<< std::endl;
+  std::cerr << " -x, <INT>    - Number of threads [1]              "<< std::endl;
   std::cerr << "Output:  " << std::endl;
   std::cerr << " Fastq entries are printed to STDOUT               "<< std::endl;
 }

@@ -40,6 +40,8 @@ Required:
  -f, <STRING> - A bgzipped fastq file.
  -s, <STRING> - A comma separated list of kmers.
                 The kmers must be 32 characters.
+ -x, <INT>    - Number of threads [1]
+
 Output:
  Fastq entries are printed to STDOUT
 ```
