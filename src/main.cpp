@@ -43,9 +43,9 @@ THE SOFTWARE.
 #include <time.h>
 #include <stdio.h>
 #include <unistd.h>
-#include "dnabit.h"
 #include <map>
 #include <vector>
+#include <omp.h>
 
 extern "C"{
 #include <stdint.h>
@@ -57,10 +57,12 @@ extern "C"{
 #include "bloom_filter.hpp"
 #include "bloomHandler.hpp"
 #include "split.h"
+#include "dnabit.h"
 
-#define BLOCK_SIZE 500
+#define BLOCK_SIZE 1000
 
 struct options{
+  int nthreads;
   std::string file ;
   std::string index;
   std::string seqs ;
@@ -74,8 +76,9 @@ struct fastq_entry{
 };
 
 
-static const char *optString = "vhf:s:";
+static const char *optString = "vhf:s:x:";
 
+omp_lock_t lock;
 
 void printHelp(void){
   std::cerr << std::endl;
@@ -105,6 +108,11 @@ int parseOpts(int argc, char** argv)
 	printHelp();
 	break;
       }
+    case 'x':
+      {
+	globalOpts.nthreads = atoi(((std::string)optarg).c_str());
+	break;
+      }
     case 'f':
       {
 	globalOpts.file  = optarg;
@@ -113,7 +121,7 @@ int parseOpts(int argc, char** argv)
       }
     case 's': 
       {
-        globalOpts.index = optarg;
+        globalOpts.seqs = optarg;
         break;
       }
 
@@ -390,7 +398,8 @@ bool parseSeqs(std::vector<uint64_t> & toLoad){
   
   for(std::vector<std::string>::iterator it = seqs.begin();
       it != seqs.end(); it++){
-   
+
+  
     if((*it).size() != 32){
       std::cerr << "WARNING: skipping kmer that is not 32 bases." << std::endl;
       continue;
@@ -403,12 +412,11 @@ bool parseSeqs(std::vector<uint64_t> & toLoad){
     if(dnaTobit(chr, 0, &kmer)){
       toLoad.push_back(kmer);
     }
-
   }
-
+    std::cerr << "INFO: going to search for " 
+	      << toLoad.size() << " kmers." << std::endl;
 
   return true;
-
 }
 
 
@@ -448,6 +456,7 @@ bool buildIndex(void){
     created_blooms.add(parameters, offsets[i]);
   }
   
+#pragma omp parallel for schedule(dynamic, 3)
   for(i = 0; i < offsets.size(); i++){
     processChunk(offsets[i], created_blooms.data[i]);
 
@@ -472,8 +481,13 @@ bool buildIndex(void){
 
 int main( int argc, char** argv)
 {
-  int parse = parseOpts(argc, argv);
   
+  globalOpts.nthreads = 1;
+
+  int parse = parseOpts(argc, argv);
+
+  omp_set_num_threads(globalOpts.nthreads);
+
   if(globalOpts.file.empty()){
     std::cerr << "FATAL: no file (-f) " << std::endl;
     printHelp();
