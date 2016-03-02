@@ -3,10 +3,10 @@
 #     zev.kronenberg@gmail.com       #
 ######################################
 
-CXX=c++ -lstdc++ -lz -lm -lpthread -fopenmp
+CXX=c++ -lstdc++
 
 fqi: bin libhts.a runtest
-	cd bin && $(CXX) -O3 -L ../htslib -I ../bloom -I ../htslib -I ../src/ ../src/main.cpp ../src/split.cpp ../htslib/libhts.a -o fqi
+	cd bin && $(CXX) -O3 -L ../htslib -I ../bloom -I ../htslib -I ../src/ ../src/main.cpp ../src/split.cpp ../htslib/libhts.a -lz -fopenmp -o fqi
 
 bin:
 	mkdir bin
