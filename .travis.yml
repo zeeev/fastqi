@@ -6,7 +6,7 @@ before_install:
  - sudo apt-get install g++
  - sudo apt-get install build-essential
  - sudo apt-get install cmake libgtest-dev
- - sudo apt-get install zlib1g-dev
+ - sudo apt-get install zlibc zlib1g zlib1g-dev
 os:
  - linux
 script: make
