@@ -1,10 +1,7 @@
 # FASTQI [![Build Status](https://travis-ci.org/zeeev/fastqi.svg?branch=master)](https://travis-ci.org/zeeev/fastqi)
 ### The fastqi repo
 
-The repo will contain tools for indexing fastq files by kmer.
-Currently the main tool is under development and not ready to use.
-
-However, the google bloom filter wrapper is ready.
+Indexing fastq.gz files by kmer.
 
 ### bloomHandler.hpp
 
